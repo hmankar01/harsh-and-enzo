@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import type { DonePayload, JobMatch, LogEntry, Stage } from "../types";
+import MissionScene from "./MissionScene";
 import ResultsPanel from "./ResultsPanel";
 import StageBar from "./StageBar";
 import Ticker from "./Ticker";
 
 const QUIPS = [
   "Harsh insists the trench coat helps him scrape faster.",
-  "Enzo alphabetizes his rejection stamps while he waits.",
-  "Enzo's rubric has rules. The rules have rules.",
-  "Harsh once found a job posting from the future. They don't talk about it.",
+  "Enzo's collar is tactical, not decorative. He's very clear about this.",
+  "Enzo can smell 'fast-paced environment' from three tabs away.",
+  "Harsh does the paperwork. Enzo does the sniffing. It works.",
   "Good sourcing takes minutes. Great sourcing takes slightly more minutes.",
 ];
 
@@ -59,6 +60,8 @@ export default function MissionControl({ stage, logs, matches, done, error, onRe
             </span>
           </div>
         </div>
+
+        <MissionScene stage={stage} lastLog={logs[logs.length - 1]} matchCount={matches.length} />
 
         <Ticker logs={logs} />
 

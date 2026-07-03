@@ -9,3 +9,5 @@ dist/
 legacy/matched_jobs.db
 .claude/settings.local.json
 *.tsbuildinfo
+self.py
+matched_jobs.db

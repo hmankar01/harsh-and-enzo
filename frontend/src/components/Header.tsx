@@ -11,7 +11,7 @@ export default function Header() {
         <h1 className="header-title">
           Harsh <span className="amp">&amp;</span> Enzo
         </h1>
-        <p className="header-tag">Talent Reconnaissance · Two agents. One shortlist.</p>
+        <p className="header-tag">Talent Reconnaissance · One agent. One very good boy. One shortlist.</p>
       </div>
     </header>
   );
