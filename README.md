@@ -91,14 +91,14 @@ locally. Rate limits reset on server restart in that mode.
 ### Upstash
 
 Create a free Redis database, copy the `rediss://` connection string into `REDIS_URL`.
-Keys used: `ratelimit:<ip>` (counter, 24h TTL) and `results:<search_id>` (JSON, 24h
-TTL). Nothing else is ever written.
+Keys used: `ratelimit:<ip>` (counter, no expiry — lifetime limit) and `results:<search_id>`
+(JSON, 24h TTL). Nothing else is ever written.
 
 ## Behavior knobs
 
 | Env | Default | Meaning |
 |---|---|---|
-| `RATE_LIMIT` | 2 | searches per IP per 24h |
+| `RATE_LIMIT` | 2 | lifetime searches per IP, no reset |
 | `MAX_LINKS` | 25 | postings scraped per run |
 | `MAX_MATCHES` | 8 | stop early once this many matches found |
 | `PER_JOB_DELAY` | 3.0 | seconds between job evaluations (politeness) |

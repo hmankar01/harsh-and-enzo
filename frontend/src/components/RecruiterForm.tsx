@@ -255,7 +255,7 @@ export default function RecruiterForm({ onSubmit, submitting, error }: Props) {
         {submitting ? "Briefing the agents…" : "Deploy Harsh & Enzo →"}
       </button>
       <p className="form-fineprint">
-        Demo build: 2 missions per visitor per day. Each run takes a few minutes — the
+        Demo build: 2 missions per visitor, ever. Each run takes a few minutes — the
         agents narrate while they work.
       </p>
     </form>

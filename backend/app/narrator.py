@@ -75,12 +75,12 @@ IDLE_QUIPS = [
 ]
 
 LIMIT_MESSAGES = [
-    "Whoa there, speed-recruiter! Harsh & Enzo run exactly two missions per day — "
-    "after that the trench coats go back on the rack. Want the full, unlimited, "
+    "Whoa there, speed-recruiter! Harsh & Enzo only run two missions per visitor, ever — "
+    "the trench coats are back on the rack for good. Want the full, unlimited, "
     "caffeinated version of this duo? That's a conversation with the human Harsh.",
     "Two searches deep and still hungry? That's the spirit. Sadly Enzo's rubber "
-    "stamp is out of ink for today — but the guy who built us restocks it. "
-    "Ping him and he'll run the real thing for you.",
+    "stamp is fresh out of ink, permanently — but the guy who built us never runs "
+    "out. Ping him and he'll run the real thing for you.",
     "Mission limit reached! Harsh has clocked out and Enzo is doing paperwork. "
     "The good news: their creator works unlimited hours and answers messages "
     "suspiciously fast.",

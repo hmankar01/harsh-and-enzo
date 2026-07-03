@@ -1,9 +1,9 @@
 """State layer: Upstash Redis in production, in-memory fallback for local dev.
 
-Only two kinds of keys exist, both with 24h TTLs:
-  ratelimit:<ip>      -> integer counter
-  results:<search_id> -> JSON blob of final ranked matches
-Nothing persists beyond the TTL. There is no database.
+Two kinds of keys exist:
+  ratelimit:<ip>      -> integer counter, no expiry (lifetime limit per IP)
+  results:<search_id> -> JSON blob of final ranked matches, 24h TTL
+There is no database.
 """
 
 import asyncio
@@ -42,6 +42,14 @@ class MemoryStore:
             self._data[key] = (str(value), expires)
             return value
 
+    async def incr(self, key: str) -> int:
+        """Increment with no expiry — a lifetime counter."""
+        async with self._lock:
+            current = self._alive(key)
+            value = (int(current) if current is not None else 0) + 1
+            self._data[key] = (str(value), float("inf"))
+            return value
+
     async def setex(self, key: str, ttl: int, value: str) -> None:
         self._data[key] = (value, time.time() + ttl)
 
@@ -67,6 +75,10 @@ class RedisStore:
             await self._r.expire(key, ttl)
         return value
 
+    async def incr(self, key: str) -> int:
+        """Increment with no expiry — a lifetime counter."""
+        return await self._r.incr(key)
+
     async def setex(self, key: str, ttl: int, value: str) -> None:
         await self._r.setex(key, ttl, value)
 
@@ -80,14 +92,13 @@ class RedisStore:
 store = RedisStore(settings.REDIS_URL) if settings.REDIS_URL else MemoryStore()
 
 
-async def check_rate_limit(ip: str) -> tuple[bool, int, int]:
-    """Increment the counter for this IP. Returns (allowed, remaining, retry_after_seconds)."""
+async def check_rate_limit(ip: str) -> tuple[bool, int]:
+    """Increment the lifetime counter for this IP. Returns (allowed, remaining)."""
     key = f"ratelimit:{ip}"
-    count = await store.incr_with_ttl(key, settings.RATE_LIMIT_TTL)
+    count = await store.incr(key)
     if count > settings.RATE_LIMIT:
-        retry_after = await store.ttl(key)
-        return False, 0, max(retry_after, 0)
-    return True, settings.RATE_LIMIT - count, 0
+        return False, 0
+    return True, settings.RATE_LIMIT - count
 
 
 async def save_results(search_id: str, payload: dict) -> None:

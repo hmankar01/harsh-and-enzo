@@ -70,7 +70,7 @@ async def health() -> dict:
 async def start_search(form: SearchForm, request: Request):
     _prune_runs()
     ip = _client_ip(request)
-    allowed, remaining, retry_after = await check_rate_limit(ip)
+    allowed, remaining = await check_rate_limit(ip)
     if not allowed:
         return JSONResponse(
             status_code=429,
@@ -79,7 +79,6 @@ async def start_search(form: SearchForm, request: Request):
                 "message": random.choice(narrator.LIMIT_MESSAGES),
                 "contact_linkedin": settings.CONTACT_LINKEDIN,
                 "contact_email": settings.CONTACT_EMAIL,
-                "retry_after_seconds": retry_after,
             },
         )
 
