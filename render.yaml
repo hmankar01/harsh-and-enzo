@@ -27,7 +27,7 @@ services:
 
       # Behavior knobs (match README defaults)
       - key: RATE_LIMIT
-        value: "2"
+        value: "7"
       - key: MAX_LINKS
         value: "25"
       - key: MAX_MATCHES

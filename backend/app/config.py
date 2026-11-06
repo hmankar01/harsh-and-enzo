@@ -28,7 +28,7 @@ class Settings:
     ]
 
     # Rate limiting — lifetime limit per IP, no reset
-    RATE_LIMIT: int = int(os.getenv("RATE_LIMIT", "2"))
+    RATE_LIMIT: int = int(os.getenv("RATE_LIMIT", "7"))
 
     # Result cache TTL (24h — nothing persists beyond this)
     RESULT_TTL: int = int(os.getenv("RESULT_TTL", "86400"))

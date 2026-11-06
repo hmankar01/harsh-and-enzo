@@ -111,7 +111,7 @@ Keys used: `ratelimit:<ip>` (counter, no expiry — lifetime limit) and `results
 
 | Env | Default | Meaning |
 |---|---|---|
-| `RATE_LIMIT` | 2 | lifetime searches per IP, no reset |
+| `RATE_LIMIT` | 7 | lifetime searches per IP, no reset |
 | `MAX_LINKS` | 25 | postings scraped per run |
 | `MAX_MATCHES` | 8 | stop early once this many matches found |
 | `PER_JOB_DELAY` | 3.0 | seconds between job evaluations (politeness) |
