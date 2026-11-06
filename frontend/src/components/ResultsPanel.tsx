@@ -7,6 +7,7 @@ export default function ResultsPanel({ matches, final }: { matches: JobMatch[]; 
     <section className="results">
       <h2 className="results-title">
         {final ? "Final shortlist — ranked by freshness" : "Matches so far"}
+        <span className="results-verified">✓ VERIFIED BY ENZO</span>
       </h2>
       <div className="results-grid">
         {matches.map((job, i) => (

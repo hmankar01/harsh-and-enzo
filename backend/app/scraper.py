@@ -27,6 +27,19 @@ JOB_ID_RE = re.compile(r"linkedin\.com/jobs/view/(?:[^\"'\s?]*?-)?(\d{6,})")
 TAG_RE = re.compile(r"<[^>]+>")
 SCRIPT_RE = re.compile(r"<(script|style|noscript)\b.*?</\1>", re.DOTALL | re.IGNORECASE)
 
+# Chromium flags tuned for small containers (Render's free tier is 512 MB RAM).
+# --no-sandbox and --disable-dev-shm-usage avoid the two most common crash modes
+# in a restricted container; --single-process trades some stability for much lower
+# memory; --disable-gpu drops an unused subsystem.
+CHROMIUM_ARGS = [
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--single-process",
+    "--disable-extensions",
+    "--mute-audio",
+]
+
 GUEST_SEARCH_URL = (
     "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
     "?keywords={keywords}&f_TPR=r{seconds}&sortBy=DD&start=0{extra}"
@@ -101,7 +114,9 @@ class Scraper:
         """Render a page in headless Chromium and return its HTML."""
         if self._browser is None:
             self._playwright = await async_playwright().start()
-            self._browser = await self._playwright.chromium.launch(headless=True)
+            self._browser = await self._playwright.chromium.launch(
+                headless=True, args=CHROMIUM_ARGS
+            )
         context = await self._browser.new_context(user_agent=USER_AGENT)
         try:
             page = await context.new_page()

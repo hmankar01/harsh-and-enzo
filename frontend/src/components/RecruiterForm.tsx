@@ -78,10 +78,16 @@ export default function RecruiterForm({ onSubmit, submitting, error }: Props) {
 
   return (
     <form className="card form-card" onSubmit={submit}>
-      <p className="form-intro">
-        Describe the role. Harsh sweeps LinkedIn, Enzo grades every posting against your
-        criteria, and matches surface live. One brief, one mission.
-      </p>
+      <span className="corner corner-tl" aria-hidden="true" />
+      <span className="corner corner-tr" aria-hidden="true" />
+      <span className="corner corner-bl" aria-hidden="true" />
+      <span className="corner corner-br" aria-hidden="true" />
+
+      <div className="form-head">
+        <h2>Mission brief</h2>
+        <span className="form-head-tag">FORM 07-A · CLASSIFIED</span>
+      </div>
+      <p className="form-intro">Describe the role. Harsh sweeps, Enzo grades, matches surface live.</p>
 
       <div className="form-grid">
         <fieldset className="field">
@@ -254,10 +260,7 @@ export default function RecruiterForm({ onSubmit, submitting, error }: Props) {
       <button className="launch-btn" type="submit" disabled={submitting}>
         {submitting ? "Briefing the agents…" : "Deploy Harsh & Enzo →"}
       </button>
-      <p className="form-fineprint">
-        Demo build: 2 missions per visitor, ever. Each run takes a few minutes — the
-        agents narrate while they work.
-      </p>
+      <p className="form-fineprint">DEMO BUILD · 2 MISSIONS PER VISITOR · AGENTS NARRATE LIVE</p>
     </form>
   );
 }

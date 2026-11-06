@@ -63,6 +63,7 @@ export default function MissionScene({ stage, lastLog, matchCount }: Props) {
 
   return (
     <div className={`scene scene-${scene}`} aria-hidden="true">
+      <div className="scan-beam" />
       <div className="scene-label">
         <span className="rec-dot" /> FIELD CAM 01 · LIVE
       </div>
@@ -210,7 +211,7 @@ export default function MissionScene({ stage, lastLog, matchCount }: Props) {
         {/* FOLDER — the job under the nose */}
         {folderVisible && (
           <g className="folder" transform="translate(478, 200)" filter="url(#holo-glow)">
-            <g className="folder-body" stroke="var(--text-dim)" strokeWidth="1.8" fill="rgba(18,23,42,0.85)">
+            <g className="folder-body" stroke="var(--text-dim)" strokeWidth="1.8" fill="rgba(10,15,28,0.85)">
               <path d="M-28,-46 h16 l6,7 h34 v35 h-56 z" strokeLinejoin="round" />
               <text
                 x="0"

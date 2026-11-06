@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { openStream, RateLimitError, startSearch } from "./api";
-import Header from "./components/Header";
+import Hero from "./components/Hero";
 import LimitScreen from "./components/LimitScreen";
 import MissionControl from "./components/MissionControl";
 import RecruiterForm from "./components/RecruiterForm";
@@ -32,6 +32,13 @@ export default function App() {
     const id = logId.current;
     setLogs((prev) => [...prev.slice(-120), { ...entry, id }]);
   }, []);
+
+  // Keep the action in view when a mission starts or the limit screen appears.
+  useEffect(() => {
+    if (phase !== "form") {
+      document.getElementById("brief")?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [phase]);
 
   const launch = useCallback(
     async (form: SearchForm) => {
@@ -97,23 +104,30 @@ export default function App() {
 
   return (
     <div className="shell">
-      <Header />
-      {phase === "form" && (
-        <RecruiterForm onSubmit={launch} submitting={submitting} error={error} />
-      )}
-      {phase === "running" && (
-        <MissionControl
-          stage={stage}
-          logs={logs}
-          matches={matches}
-          done={done}
-          error={error}
-          onReset={reset}
-        />
-      )}
-      {phase === "limited" && limitInfo && <LimitScreen info={limitInfo} />}
+      <div className="aurora" aria-hidden="true">
+        <div className="aurora-a" />
+        <div className="aurora-b" />
+        <div className="aurora-grid" />
+      </div>
+      <Hero />
+      <div id="brief" className="brief-anchor">
+        {phase === "form" && (
+          <RecruiterForm onSubmit={launch} submitting={submitting} error={error} />
+        )}
+        {phase === "running" && (
+          <MissionControl
+            stage={stage}
+            logs={logs}
+            matches={matches}
+            done={done}
+            error={error}
+            onReset={reset}
+          />
+        )}
+        {phase === "limited" && limitInfo && <LimitScreen info={limitInfo} />}
+      </div>
       <footer className="footer">
-        Built with two imaginary employees and one very real scraping pipeline.
+        Built with two imaginary employees and one very real scraping pipeline
       </footer>
     </div>
   );

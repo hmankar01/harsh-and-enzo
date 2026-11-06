@@ -6,8 +6,5 @@ venv/
 node_modules/
 dist/
 .DS_Store
-legacy/matched_jobs.db
-.claude/settings.local.json
 *.tsbuildinfo
-self.py
 matched_jobs.db

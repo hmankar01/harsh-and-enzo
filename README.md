@@ -23,7 +23,7 @@ recruiter form ──► LLM builds boolean query + relaxation ladder + eval rub
 | Piece | Choice |
 |---|---|
 | Frontend | React 18 + Vite + TypeScript, plain CSS — deploys to **Vercel** |
-| Backend | FastAPI + Playwright (headless Chromium) — deploys to **Railway** via Dockerfile |
+| Backend | FastAPI + Playwright (headless Chromium) — deploys to **Render** via Dockerfile |
 | State | **Upstash Redis** only (rate limits + 24h result cache). No database. |
 | LLM | OpenCode gateway (OpenAI-compatible), key server-side only |
 | Live progress | Server-Sent Events with replay-on-reconnect |
@@ -64,26 +64,39 @@ locally. Rate limits reset on server restart in that mode.
 
 ## Deploy
 
-### Backend → Railway
+### Backend → Render (free tier)
 
-1. Create a service from this repo with **root directory `backend`** — Railway picks up
-   the `Dockerfile` automatically. The image is `mcr.microsoft.com/playwright/python`,
-   which ships Chromium + all headless system deps (a plain Python buildpack will NOT
-   run Chromium; don't switch to one).
-2. Set environment variables:
-   - `OPENCODE_API_KEY` — **required** (rotate the old key; see security note)
-   - `REDIS_URL` — the `rediss://` string from your Upstash database
-   - `ALLOWED_ORIGINS` — your exact Vercel URL, e.g. `https://harsh-and-enzo.vercel.app`
-     (comma-separate if you add a custom domain). CORS is a strict whitelist.
-   - optional: `EVAL_MODEL`, `QUERY_MODEL`, `CONTACT_LINKEDIN`, `CONTACT_EMAIL`
-3. Railway injects `PORT`; the Dockerfile honors it.
+The repo ships a `render.yaml` Blueprint, so the fastest path is
+**Render → New → Blueprint → connect this repo**. It defines the Docker service,
+the free plan, the `/api/health` health check, and the full env-var list in one go.
+Secrets (`OPENCODE_API_KEY`, `REDIS_URL`) are marked `sync: false`, so Render
+prompts you for them during setup instead of storing them in git.
 
-(Render works identically as a backup: "Web Service → Docker", same env vars.)
+To do it manually instead: **New → Web Service**, connect the repo, and set
+**root directory `backend`**. Render builds the `Dockerfile` automatically. The
+image is `mcr.microsoft.com/playwright/python`, which ships Chromium + all
+headless system deps (a plain Python buildpack will NOT run Chromium; don't
+switch to one).
+
+Environment variables:
+- `OPENCODE_API_KEY` — **required** (rotate the old key; see security note)
+- `REDIS_URL` — the `rediss://` string from your Upstash database
+- `ALLOWED_ORIGINS` — your exact Vercel URL, e.g. `https://harsh-and-enzo.vercel.app`
+  (comma-separate if you add a custom domain). CORS is a strict whitelist.
+- optional: `EVAL_MODEL`, `QUERY_MODEL`, `CONTACT_LINKEDIN`, `CONTACT_EMAIL`
+
+Render injects `PORT`; the Dockerfile honors it.
+
+> **Free-tier caveat:** Render free web services get 512 MB RAM, sleep after
+> 15 idle minutes (a cold start takes ~30–60 s), and share 750 instance-hours per
+> month per workspace. Headless Chromium is the memory-hungry part of the pipeline;
+> if a run OOMs, trim or disable the browser fallback in `scraper.py` — the `httpx`
+> guest-API fast path usually succeeds without ever launching Chromium.
 
 ### Frontend → Vercel
 
 1. Import the repo, set **root directory `frontend`** (framework preset: Vite).
-2. Set `VITE_API_URL` to the Railway public URL, e.g. `https://<service>.up.railway.app`
+2. Set `VITE_API_URL` to the Render public URL, e.g. `https://<service>.onrender.com`
    — no trailing slash.
 3. After the first deploy, copy the Vercel URL back into the backend's
    `ALLOWED_ORIGINS`.
@@ -105,16 +118,18 @@ Keys used: `ratelimit:<ip>` (counter, no expiry — lifetime limit) and `results
 
 ## Security notes
 
-- **Rotate the OpenCode key** that was hardcoded in the original script
-  (`legacy/main.py`) — it should be treated as leaked. The new backend only reads
-  `OPENCODE_API_KEY` from the environment and never sends it to the frontend.
+- **Keep the OpenCode key out of the repo.** The backend reads `OPENCODE_API_KEY`
+  from the environment and never sends it to the frontend. An earlier standalone
+  script had a key hardcoded; it has been removed, and that old key should be
+  treated as leaked and rotated.
 - CORS is an explicit origin whitelist; there is no wildcard anywhere.
 - The rate limiter trusts the first `X-Forwarded-For` hop, which is correct behind
-  Railway's proxy.
+  Render's proxy.
 
 ## Repo layout
 
 ```
+render.yaml      Render Blueprint (free-tier Docker web service definition)
 backend/
   app/
     main.py       FastAPI app: kickoff, SSE stream, results, CORS, rate limiting
@@ -125,8 +140,7 @@ backend/
     store.py      Upstash Redis (or in-memory dev fallback): ratelimit + results
     config.py     env-driven settings
     models.py     recruiter form + job match schemas
-  Dockerfile      Playwright base image (Chromium preinstalled) for Railway
+  Dockerfile      Playwright base image (Chromium preinstalled) for Render
 frontend/
   src/            React app: form → mission control (stage bar + ticker + live results)
-legacy/           the original script this was built from (reference only)
 ```
