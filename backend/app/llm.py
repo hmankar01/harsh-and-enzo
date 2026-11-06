@@ -9,6 +9,7 @@ Model routing:
 
 import json
 import re
+import uuid
 from typing import Optional
 
 from openai import AsyncOpenAI
@@ -17,6 +18,9 @@ from .config import settings
 from .models import SearchForm
 
 _client: Optional[AsyncOpenAI] = None
+
+# OpenCode Go requires a stable session id on every request (routing + prompt caching).
+SESSION_ID = uuid.uuid4().hex
 
 
 def _get_client() -> AsyncOpenAI:
@@ -27,6 +31,11 @@ def _get_client() -> AsyncOpenAI:
         _client = AsyncOpenAI(
             api_key=settings.OPENCODE_API_KEY,
             base_url=settings.OPENCODE_BASE_URL,
+            default_headers={
+                # OpenCode Go rejects requests without this session header.
+                "x-opencode-session": f"ses_{SESSION_ID}",
+                "User-Agent": "harsh-and-enzo/1.0",
+            },
         )
     return _client
 

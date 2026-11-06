@@ -6,15 +6,15 @@ class Settings:
 
     # OpenCode gateway (OpenAI-compatible). Key is server-side only.
     OPENCODE_API_KEY: str = os.getenv("OPENCODE_API_KEY", "")
-    OPENCODE_BASE_URL: str = os.getenv("OPENCODE_BASE_URL", "https://opencode.ai/zen/go/v1")
+    OPENCODE_BASE_URL: str = os.getenv("OPENCODE_BASE_URL", "https://opencode.ai/inference/go/openai/v1")
 
     # Model routing:
     #  - QUERY_MODEL: fast/cheap model for query building + relaxation planning.
     #  - EVAL_MODEL: the model that judges each job posting (structured JSON accuracy
     #    matters most here). Defaults to flash so it works out of the box; point it at
     #    the strongest model your OpenCode plan routes to for better precision.
-    QUERY_MODEL: str = os.getenv("QUERY_MODEL", "deepseek-v4-flash")
-    EVAL_MODEL: str = os.getenv("EVAL_MODEL", "deepseek-v4-flash")
+    QUERY_MODEL: str = os.getenv("QUERY_MODEL", "deepseek-v4.1-flash")
+    EVAL_MODEL: str = os.getenv("EVAL_MODEL", "deepseek-v4.1-flash")
 
     # Upstash Redis (rediss:// URL from the Upstash console). If unset, an in-memory
     # store is used so local dev works without Redis.

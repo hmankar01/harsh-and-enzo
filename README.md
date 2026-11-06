@@ -32,10 +32,10 @@ recruiter form ──► LLM builds boolean query + relaxation ladder + eval rub
 
 Two roles, routed independently via env vars:
 
-- **`QUERY_MODEL`** (default `deepseek-v4-flash`) — builds the boolean query, the
+- **`QUERY_MODEL`** (default `deepseek-v4.1-flash`) — builds the boolean query, the
   2-rung relaxation ladder, and the eval rubric in **one templated call**. This is a
   low-stakes structured task; fast and cheap wins.
-- **`EVAL_MODEL`** (default `deepseek-v4-flash`) — judges each scraped posting. This is
+- **`EVAL_MODEL`** (default `deepseek-v4.1-flash`) — judges each scraped posting. This is
   where structured-JSON accuracy and rubric-following matter most, so point it at the
   strongest model your OpenCode plan routes to (e.g. a Claude or Kimi model id) when
   available. The JSON parser tolerates fences/prose and retries twice, so flash works

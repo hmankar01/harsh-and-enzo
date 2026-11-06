@@ -21,9 +21,9 @@ services:
 
       # Model routing (OpenCode model ids)
       - key: QUERY_MODEL
-        value: deepseek-v4-flash
+        value: deepseek-v4.1-flash
       - key: EVAL_MODEL
-        value: deepseek-v4-flash
+        value: deepseek-v4.1-flash
 
       # Behavior knobs (match README defaults)
       - key: RATE_LIMIT
