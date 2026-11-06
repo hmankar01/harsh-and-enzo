@@ -260,7 +260,7 @@ export default function RecruiterForm({ onSubmit, submitting, error }: Props) {
       <button className="launch-btn" type="submit" disabled={submitting}>
         {submitting ? "Briefing the agents…" : "Deploy Harsh & Enzo →"}
       </button>
-      <p className="form-fineprint">DEMO BUILD · 2 MISSIONS PER VISITOR · AGENTS NARRATE LIVE</p>
+      <p className="form-fineprint">DEMO BUILD · 7 MISSIONS PER VISITOR · AGENTS NARRATE LIVE</p>
     </form>
   );
 }
