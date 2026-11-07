@@ -111,13 +111,14 @@ def _canonical_links(raw: str) -> list[str]:
 
 
 AUTHWALL_MARKERS = (
-    "sign in", "authwall", "verify you're a real person",
-    "join linkedin", "let's do a quick verification",
+    "verify you're a real person",
+    "let's do a quick verification",
+    "this is a standard security test",
 )
 
 
 def _is_authwall(text: str) -> bool:
-    head = text[:500].lower()
+    head = text[:800].lower()
     return any(m in head for m in AUTHWALL_MARKERS)
 
 
