@@ -57,7 +57,26 @@ def _extract_json(text: str) -> dict:
         raise
 
 
-async def _json_chat(model: str, system: str, user: str, retries: int = 2) -> dict:
+# Fast/cheap OpenCode Go models to try when the primary is overloaded or down.
+# All are natively served via the OpenAI chat-completions endpoint, so the same
+# client works unchanged.
+FALLBACK_MODELS = [
+    "glm-5.3-flash",
+    "kimi-k2.7-code",
+    "mimo-v2.6-flash",
+]
+
+
+def _model_chain(primary: str) -> list[str]:
+    chain = [primary]
+    for m in FALLBACK_MODELS:
+        if m != primary:
+            chain.append(m)
+    return chain
+
+
+async def _chat_with_retries(model: str, system: str, user: str, retries: int = 2) -> dict:
+    """Call one model, retrying transient errors and bad JSON before giving up."""
     last_error: Optional[Exception] = None
     for attempt in range(retries + 1):
         try:
@@ -82,6 +101,18 @@ async def _json_chat(model: str, system: str, user: str, retries: int = 2) -> di
         except (json.JSONDecodeError, ValueError) as e:
             last_error = e
     raise RuntimeError(f"Model {model} never returned valid JSON: {last_error}")
+
+
+async def _json_chat(model: str, system: str, user: str) -> dict:
+    """Call the primary model, falling back to alternates when it errors."""
+    last_error: Optional[Exception] = None
+    for m in _model_chain(model):
+        try:
+            return await _chat_with_retries(m, system, user)
+        except Exception as e:
+            last_error = e
+            continue
+    raise RuntimeError(f"All models failed: {last_error}")
 
 
 PLAN_SYSTEM = """You are a technical sourcing strategist. You convert a recruiter's structured \
