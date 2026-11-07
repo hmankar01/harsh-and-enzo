@@ -24,7 +24,7 @@ TIME_FILTERS = [86400, 172800, 259200]  # 24h -> 48h -> 72h
 PIPELINE_SEMAPHORE = asyncio.Semaphore(2)
 
 # How many jobs to scrape + evaluate concurrently within a single run.
-EVAL_CONCURRENCY = 3
+EVAL_CONCURRENCY = 2
 
 
 def parse_recency(posted: str) -> int:

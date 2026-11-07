@@ -7,12 +7,13 @@ Model routing:
       strict JSON, so point this at the strongest model your gateway routes to.
 """
 
+import asyncio
 import json
 import re
 import uuid
 from typing import Optional
 
-from openai import AsyncOpenAI
+from openai import APIConnectionError, APIStatusError, AsyncOpenAI
 
 from .config import settings
 from .models import SearchForm
@@ -58,15 +59,23 @@ def _extract_json(text: str) -> dict:
 
 async def _json_chat(model: str, system: str, user: str, retries: int = 2) -> dict:
     last_error: Optional[Exception] = None
-    for _ in range(retries + 1):
-        response = await _get_client().chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            temperature=0.2,
-        )
+    for attempt in range(retries + 1):
+        try:
+            response = await _get_client().chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                temperature=0.2,
+            )
+        except (APIStatusError, APIConnectionError) as e:
+            # Transient gateway/upstream error (e.g. 429 "overloaded") — back off and retry.
+            last_error = e
+            if attempt < retries:
+                await asyncio.sleep(2.0 * (attempt + 1))
+                continue
+            raise
         content = response.choices[0].message.content or ""
         try:
             return _extract_json(content)
