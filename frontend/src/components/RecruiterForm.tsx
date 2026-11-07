@@ -8,10 +8,22 @@ const SKILL_OPTIONS = [
   "AI Agents",
   "Prompt Engineering",
   "Python",
+  "SQL",
   "Machine Learning",
   "NLP",
   "MLOps",
   "Computer Vision",
+  "Statistics",
+  "Data Analysis",
+  "Data Pipelines",
+  "Predictive Modeling",
+  "A/B Testing",
+  "Pandas",
+  "Automation",
+  "Dashboards",
+  "API Integration",
+  "Client Delivery",
+  "Forward Deployed",
 ];
 
 const DOMAIN_OPTIONS = [
@@ -51,6 +63,34 @@ const BUILDER_PRESET: SearchForm = {
   location: { remote: true, hybrid: false, onsite: false, cities: [], radius_miles: 25 },
   exclusion_keywords:
     "model training, deep learning, research scientist, machine learning engineer, quant, PhD, fine-tuning",
+  salary_floor: undefined,
+};
+
+// Forward Deployed Engineer: customer-facing applied AI — ship into real client
+// environments (Python/SQL + LLMs/agents + integrations + delivery).
+const FDE_PRESET: SearchForm = {
+  experience_min: 0,
+  experience_max: 2,
+  exclude_seniority: [...SENIORITY_OPTIONS],
+  skills: ["Python", "SQL", "AI Agents", "LLM", "RAG", "API Integration", "Client Delivery", "Forward Deployed"],
+  domains: ["General Ops"],
+  requires_sponsorship: true,
+  location: { remote: true, hybrid: false, onsite: false, cities: [], radius_miles: 25 },
+  exclusion_keywords:
+    "model training, deep learning, research scientist, machine learning engineer, quant, PhD, fine-tuning",
+  salary_floor: undefined,
+};
+
+// Data Scientist: models + data (stats, ML, experimentation), not research.
+const DATA_SCIENTIST_PRESET: SearchForm = {
+  experience_min: 0,
+  experience_max: 2,
+  exclude_seniority: [...SENIORITY_OPTIONS],
+  skills: ["Python", "SQL", "Machine Learning", "Statistics", "Data Analysis", "Pandas", "Predictive Modeling", "A/B Testing"],
+  domains: ["General Ops"],
+  requires_sponsorship: true,
+  location: { remote: true, hybrid: false, onsite: false, cities: [], radius_miles: 25 },
+  exclusion_keywords: "research scientist, PhD required, deep learning research",
   salary_floor: undefined,
 };
 
@@ -152,14 +192,17 @@ export default function RecruiterForm({ onSubmit, submitting, error }: Props) {
       </div>
       <p className="form-intro">Describe the role. Harsh sweeps, Enzo grades, matches surface live.</p>
 
-      <button
-        type="button"
-        className="preset-btn"
-        onClick={() => setForm(BUILDER_PRESET)}
-        title="Applied AI / builder roles that sponsor visas"
-      >
-        ⚡ Builder / FDE brief
-      </button>
+      <div className="preset-row">
+        <button type="button" className="preset-btn" onClick={() => setForm(BUILDER_PRESET)}>
+          ⚡ Builder
+        </button>
+        <button type="button" className="preset-btn" onClick={() => setForm(FDE_PRESET)}>
+          ⚡ FDE
+        </button>
+        <button type="button" className="preset-btn" onClick={() => setForm(DATA_SCIENTIST_PRESET)}>
+          ⚡ Data Scientist
+        </button>
+      </div>
 
       <div className="form-grid">
         <fieldset className="field">

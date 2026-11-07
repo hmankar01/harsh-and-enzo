@@ -31,6 +31,10 @@ export default function MissionScene({ stage, lastLog, matchCount }: Props) {
   const revert = useRef<number | null>(null);
 
   useEffect(() => {
+    if (revert.current) {
+      window.clearTimeout(revert.current);
+      revert.current = null;
+    }
     if (stage === "done") setScene("done");
     else if (stage === "searching" || stage === "scraping") setScene("search");
   }, [stage]);

@@ -110,6 +110,17 @@ def _canonical_links(raw: str) -> list[str]:
     return links
 
 
+AUTHWALL_MARKERS = (
+    "sign in", "authwall", "verify you're a real person",
+    "join linkedin", "let's do a quick verification",
+)
+
+
+def _is_authwall(text: str) -> bool:
+    head = text[:500].lower()
+    return any(m in head for m in AUTHWALL_MARKERS)
+
+
 class Scraper:
     def __init__(self):
         self._playwright = None
@@ -126,17 +137,31 @@ class Scraper:
     async def __aexit__(self, *exc) -> None:
         await self._http.aclose()
         if self._browser:
-            await self._browser.close()
+            try:
+                await self._browser.close()
+            except Exception:
+                pass
         if self._playwright:
-            await self._playwright.stop()
+            try:
+                await self._playwright.stop()
+            except Exception:
+                pass
 
     async def _page_content(self, url: str) -> str:
         """Render a page in headless Chromium and return its HTML."""
-        if self._browser is None:
-            self._playwright = await async_playwright().start()
-            self._browser = await self._playwright.chromium.launch(
-                headless=True, args=CHROMIUM_ARGS
-            )
+        if self._browser is None or not self._browser.is_connected():
+            if self._browser is not None:
+                await self._browser.close()
+                self._browser = None
+            if self._playwright is None:
+                self._playwright = await async_playwright().start()
+            try:
+                self._browser = await self._playwright.chromium.launch(
+                    headless=True, args=CHROMIUM_ARGS
+                )
+            except Exception:
+                self._browser = None
+                raise
         context = await self._browser.new_context(user_agent=USER_AGENT)
         try:
             page = await context.new_page()
@@ -202,13 +227,14 @@ class Scraper:
                 response = await self._http.get(guest_url)
                 if response.status_code == 200:
                     text = _html_to_text(response.text)
-                    if len(text) > 400 and "authwall" not in response.url.path:
+                    if len(text) > 400 and "authwall" not in response.url.path and not _is_authwall(text):
                         return text
             except httpx.HTTPError:
                 pass
 
         content = await self._page_content(url)
-        return _html_to_text(content)
+        text = _html_to_text(content)
+        return "" if _is_authwall(text) else text
 
     @staticmethod
     async def polite_delay(base: float) -> None:

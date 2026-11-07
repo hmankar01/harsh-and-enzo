@@ -11,7 +11,7 @@ export default function ResultsPanel({ matches, final }: { matches: JobMatch[]; 
       </h2>
       <div className="results-grid">
         {matches.map((job, i) => (
-          <article className="job-card" key={job.url}>
+          <article className="job-card" key={`${job.url}-${i}`}>
             <div className="job-rank">#{job.rank ?? i + 1}</div>
             <h3 className="job-title">{job.title}</h3>
             <p className="job-company">{job.company}</p>

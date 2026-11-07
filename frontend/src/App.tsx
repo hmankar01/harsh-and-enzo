@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { openStream, RateLimitError, startSearch } from "./api";
+import { cancelSearch, openStream, RateLimitError, startSearch } from "./api";
 import Hero from "./components/Hero";
 import LimitScreen from "./components/LimitScreen";
 import MissionControl from "./components/MissionControl";
@@ -26,6 +26,8 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const logId = useRef(0);
   const source = useRef<EventSource | null>(null);
+  const searchIdRef = useRef<string | null>(null);
+  const lastEventAt = useRef(Date.now());
 
   const addLog = useCallback((entry: Omit<LogEntry, "id">) => {
     logId.current += 1;
@@ -45,12 +47,26 @@ export default function App() {
     return () => source.current?.close();
   }, []);
 
+  // Watchdog: if no event arrives for a while during a run, surface an error.
+  useEffect(() => {
+    if (phase !== "running") return;
+    const t = setInterval(() => {
+      if (Date.now() - lastEventAt.current > 120_000) {
+        setError("Lost contact with the agency — it may have gone to sleep. Hit 'Cancel' and try again.");
+        source.current?.close();
+      }
+    }, 10_000);
+    return () => clearInterval(t);
+  }, [phase]);
+
   const launch = useCallback(
     async (form: SearchForm) => {
       setSubmitting(true);
       setError(null);
       try {
         const searchId = await startSearch(form);
+        searchIdRef.current = searchId;
+        lastEventAt.current = Date.now();
         setPhase("running");
         setStage("searching");
         setLogs([]);
@@ -61,16 +77,20 @@ export default function App() {
         source.current = es;
 
         es.addEventListener("stage", (e) => {
+          lastEventAt.current = Date.now();
           setStage(JSON.parse((e as MessageEvent).data).stage as Stage);
         });
         es.addEventListener("log", (e) => {
+          lastEventAt.current = Date.now();
           addLog(JSON.parse((e as MessageEvent).data));
         });
         es.addEventListener("match", (e) => {
+          lastEventAt.current = Date.now();
           const job = JSON.parse((e as MessageEvent).data) as JobMatch;
           setMatches((prev) => [...prev, job]);
         });
         es.addEventListener("done", (e) => {
+          lastEventAt.current = Date.now();
           const payload = JSON.parse((e as MessageEvent).data) as DonePayload;
           setMatches(payload.matches);
           setDone(payload);
@@ -87,8 +107,7 @@ export default function App() {
             }
             es.close();
           }
-          // Errors without data are transport-level; EventSource auto-reconnects
-          // and the backend replays the event log from the top of the cursor.
+          // Errors without data are transport-level; EventSource auto-reconnects.
         });
       } catch (err) {
         if (err instanceof RateLimitError) {
@@ -106,6 +125,10 @@ export default function App() {
 
   const reset = useCallback(() => {
     source.current?.close();
+    if (searchIdRef.current) {
+      cancelSearch(searchIdRef.current);
+      searchIdRef.current = null;
+    }
     setPhase("form");
     setStage("idle");
     setLogs([]);

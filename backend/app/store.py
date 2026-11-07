@@ -8,6 +8,7 @@ There is no database.
 
 import asyncio
 import json
+import math
 import time
 from typing import Optional
 
@@ -50,6 +51,14 @@ class MemoryStore:
             self._data[key] = (str(value), float("inf"))
             return value
 
+    async def decr(self, key: str) -> int:
+        """Decrement a counter (used to refund a failed run's quota)."""
+        async with self._lock:
+            current = self._alive(key)
+            value = max(0, (int(current) if current is not None else 0) - 1)
+            self._data[key] = (str(value), float("inf"))
+            return value
+
     async def setex(self, key: str, ttl: int, value: str) -> None:
         self._data[key] = (value, time.time() + ttl)
 
@@ -60,7 +69,10 @@ class MemoryStore:
         item = self._data.get(key)
         if item is None:
             return -2
-        return max(0, int(item[1] - time.time()))
+        expires = item[1]
+        if math.isinf(expires):
+            return -1  # no expiry
+        return max(0, int(expires - time.time()))
 
 
 class RedisStore:
@@ -78,6 +90,14 @@ class RedisStore:
     async def incr(self, key: str) -> int:
         """Increment with no expiry — a lifetime counter."""
         return await self._r.incr(key)
+
+    async def decr(self, key: str) -> int:
+        """Decrement a counter (used to refund a failed run's quota)."""
+        value = await self._r.decr(key)
+        if value < 0:
+            await self._r.set(key, 0)
+            value = 0
+        return value
 
     async def setex(self, key: str, ttl: int, value: str) -> None:
         await self._r.setex(key, ttl, value)
@@ -99,6 +119,11 @@ async def check_rate_limit(ip: str) -> tuple[bool, int]:
     if count > settings.RATE_LIMIT:
         return False, 0
     return True, settings.RATE_LIMIT - count
+
+
+async def refund_rate_limit(ip: str) -> None:
+    """Refund a failed run's quota increment (best effort)."""
+    await store.decr(f"ratelimit:{ip}")
 
 
 async def save_results(search_id: str, payload: dict) -> None:

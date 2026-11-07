@@ -15,6 +15,7 @@ export async function startSearch(form: SearchForm): Promise<string> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(form),
+    signal: AbortSignal.timeout(60000),
   });
   if (response.status === 429) {
     throw new RateLimitError(await response.json());
@@ -28,4 +29,12 @@ export async function startSearch(form: SearchForm): Promise<string> {
 
 export function openStream(searchId: string): EventSource {
   return new EventSource(`${API_BASE}/api/search/${searchId}/stream`);
+}
+
+export async function cancelSearch(searchId: string): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/search/${searchId}/cancel`, { method: "POST" });
+  } catch {
+    /* best effort — the stream is already closed */
+  }
 }

@@ -344,7 +344,7 @@ body {
 
 .preset-btn {
   display: inline-block;
-  margin: 0 0 18px;
+  margin: 0;
   padding: 7px 14px;
   border: 1px dashed var(--harsh);
   border-radius: 10px;
@@ -355,6 +355,13 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.16s ease;
+}
+
+.preset-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 18px;
 }
 
 .preset-btn:hover {

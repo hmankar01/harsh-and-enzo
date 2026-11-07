@@ -1,8 +1,9 @@
 """FastAPI app: rate-limited search kickoff, SSE progress stream, cached results.
 
-POST /api/search              -> starts a pipeline run (429 with personality when over limit)
-GET  /api/search/{id}/stream  -> SSE: stage / log / match / done / error events
-GET  /api/search/{id}/results -> ranked matches from Redis (24h TTL)
+POST /api/search               -> starts a pipeline run (429 with personality when over limit)
+POST /api/search/{id}/cancel   -> cancels a running pipeline
+GET  /api/search/{id}/stream   -> SSE: stage / log / match / done / error events
+GET  /api/search/{id}/results  -> ranked matches from Redis (24h TTL)
 GET  /api/health
 """
 
@@ -21,16 +22,16 @@ from . import narrator
 from .config import settings
 from .models import SearchForm
 from .pipeline import run_pipeline
-from .store import check_rate_limit, load_results
+from .store import check_rate_limit, load_results, refund_rate_limit
 
 app = FastAPI(title="Harsh & Enzo Job Matcher")
 
-# Explicit origin whitelist — no wildcard.
+# Explicit origin whitelist — no wildcard. Last-Event-ID enables SSE resume.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Last-Event-ID"],
 )
 
 
@@ -41,6 +42,7 @@ class SearchRun:
 
     history: list[tuple[str, dict]] = field(default_factory=list)
     finished: bool = False
+    cancelled: bool = False
     started_at: float = field(default_factory=time.time)
 
 
@@ -50,6 +52,8 @@ TASKS: set[asyncio.Task] = set()
 
 
 def _client_ip(request: Request) -> str:
+    # Render prepends the real client IP to X-Forwarded-For, so the first hop is
+    # the client.
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
@@ -57,8 +61,9 @@ def _client_ip(request: Request) -> str:
 
 
 def _prune_runs() -> None:
+    # Drop stale runs (finished or not) so cancelled/crashed runs can't leak.
     cutoff = time.time() - 3600
-    for key in [k for k, run in RUNS.items() if run.finished and run.started_at < cutoff]:
+    for key in [k for k, run in RUNS.items() if run.started_at < cutoff]:
         del RUNS[key]
 
 
@@ -92,33 +97,58 @@ async def start_search(form: SearchForm, request: Request):
         if event in TERMINAL_EVENTS:
             run.finished = True
 
-    task = asyncio.create_task(run_pipeline(search_id, form, emit))
+    def _on_done(_: asyncio.Task) -> None:
+        # Refund the quota if the run failed before producing results.
+        if run.history and run.history[-1][0] == "error":
+            asyncio.create_task(refund_rate_limit(ip))
+
+    task = asyncio.create_task(
+        run_pipeline(search_id, form, emit, is_cancelled=lambda: run.cancelled)
+    )
     TASKS.add(task)
     task.add_done_callback(TASKS.discard)
+    task.add_done_callback(_on_done)
     return {"search_id": search_id, "searches_remaining": remaining}
 
 
-def _sse(event: str, data: dict) -> str:
-    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+@app.post("/api/search/{search_id}/cancel")
+async def cancel_search(search_id: str):
+    run = RUNS.get(search_id)
+    if run is None:
+        return JSONResponse(status_code=404, content={"error": "unknown_search"})
+    run.cancelled = True
+    return {"status": "cancelled"}
+
+
+def _sse(event: str, data: dict, event_id: int) -> str:
+    return f"id: {event_id}\nevent: {event}\ndata: {json.dumps(data)}\n\n"
 
 
 @app.get("/api/search/{search_id}/stream")
-async def stream_search(search_id: str):
+async def stream_search(search_id: str, request: Request):
     run = RUNS.get(search_id)
     if run is None:
         return JSONResponse(status_code=404, content={"error": "unknown_search"})
 
-    async def event_source():
+    # Resume from Last-Event-ID on reconnect (EventSource sends it automatically).
+    last_id = request.headers.get("last-event-id")
+    if last_id is None or last_id == "":
         cursor = 0
+    else:
+        try:
+            cursor = int(last_id) + 1
+        except ValueError:
+            cursor = 0
+
+    async def event_source():
+        nonlocal cursor
         idle = 0.0
-        # Stream the event log with a cursor: replays history on (re)connect,
-        # then follows live. Heartbeats keep proxies from closing the stream.
         while True:
             if cursor < len(run.history):
                 event, data = run.history[cursor]
                 cursor += 1
                 idle = 0.0
-                yield _sse(event, data)
+                yield _sse(event, data, cursor - 1)
                 if event in TERMINAL_EVENTS:
                     return
                 continue

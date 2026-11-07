@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DonePayload, JobMatch, LogEntry, Stage } from "../types";
 import MissionScene from "./MissionScene";
 import ResultsPanel from "./ResultsPanel";
@@ -26,6 +26,7 @@ export default function MissionControl({ stage, logs, matches, done, error, onRe
   const [elapsed, setElapsed] = useState(0);
   const [quip, setQuip] = useState(0);
   const [bump, setBump] = useState(false);
+  const startedAt = useRef(Date.now());
   const running = stage !== "done" && !error;
 
   useEffect(() => {
@@ -37,7 +38,11 @@ export default function MissionControl({ stage, logs, matches, done, error, onRe
 
   useEffect(() => {
     if (!running) return;
-    const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
+    startedAt.current = Date.now();
+    setElapsed(0);
+    const timer = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt.current) / 1000));
+    }, 1000);
     const quips = setInterval(() => setQuip((q) => (q + 1) % QUIPS.length), 9000);
     return () => {
       clearInterval(timer);
