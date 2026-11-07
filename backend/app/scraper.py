@@ -16,7 +16,7 @@ from typing import Optional
 import httpx
 from playwright.async_api import async_playwright
 
-from .models import SearchForm
+from .models import LocationSpec, SearchForm
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -42,7 +42,7 @@ CHROMIUM_ARGS = [
 
 GUEST_SEARCH_URL = (
     "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
-    "?keywords={keywords}&f_TPR=r{seconds}&sortBy=DD&start=0{extra}"
+    "?keywords={keywords}&f_TPR=r{seconds}&sortBy=DD&start={start}{extra}"
 )
 FULL_SEARCH_URL = (
     "https://www.linkedin.com/jobs/search/?keywords={keywords}&f_TPR=r{seconds}&sortBy=DD{extra}"
@@ -55,22 +55,42 @@ def _salary_bucket(floor: int) -> Optional[int]:
     return min(9, max(1, (floor - 20000) // 20000))
 
 
-def _location_params(form: SearchForm) -> str:
-    extra = ""
+def _workplace_codes(loc: LocationSpec) -> str:
+    """LinkedIn f_WT codes: 1=onsite, 2=remote, 3=hybrid. Empty string = any."""
+    codes = []
+    if loc.onsite:
+        codes.append("1")
+    if loc.remote:
+        codes.append("2")
+    if loc.hybrid:
+        codes.append("3")
+    if len(codes) in (0, 3):
+        return ""  # none or all => no workplace-type filter
+    return ",".join(codes)
+
+
+def _location_variants(form: SearchForm) -> list[str]:
+    """One 'extra' query-string per city (or one nationwide search when no cities
+    are given), carrying workplace-type, radius, and salary filters."""
     loc = form.location
-    if loc.mode == "remote":
-        extra += "&f_WT=2"
-    elif loc.city:
-        extra += f"&location={urllib.parse.quote(loc.city)}"
-        if loc.mode == "hybrid":
-            extra += "&f_WT=3"
-            if loc.radius_miles:
-                extra += f"&distance={loc.radius_miles}"
+    wt = _workplace_codes(loc)
+    salary = ""
     if form.salary_floor:
         bucket = _salary_bucket(form.salary_floor)
         if bucket:
-            extra += f"&f_SB2={bucket}"
-    return extra
+            salary = f"&f_SB2={bucket}"
+
+    variants = []
+    for city in (loc.cities or [""]):
+        extra = salary
+        if city:
+            extra += f"&location={urllib.parse.quote(city)}"
+        if wt:
+            extra += f"&f_WT={wt}"
+        if loc.hybrid and loc.radius_miles:
+            extra += f"&distance={loc.radius_miles}"
+        variants.append(extra)
+    return variants
 
 
 def _html_to_text(raw: str) -> str:
@@ -129,24 +149,38 @@ class Scraper:
     async def search_links(self, query: str, seconds: int, form: SearchForm) -> list[str]:
         """Return canonical job-view URLs for a boolean query within a time window."""
         keywords = urllib.parse.quote(query)
-        extra = _location_params(form)
+        variants = _location_variants(form)
 
         # Fast path: guest API returns job-card HTML without needing a browser.
-        try:
-            response = await self._http.get(
-                GUEST_SEARCH_URL.format(keywords=keywords, seconds=seconds, extra=extra)
-            )
-            if response.status_code == 200:
-                links = _canonical_links(response.text)
-                if links:
-                    return links
-        except httpx.HTTPError:
-            pass
+        # Paginate (25 cards/page) across each location and merge + dedupe.
+        all_links: list[str] = []
+        for extra in variants:
+            for start in (0, 25, 50, 75):
+                try:
+                    response = await self._http.get(
+                        GUEST_SEARCH_URL.format(
+                            keywords=keywords, seconds=seconds, start=start, extra=extra
+                        )
+                    )
+                    if response.status_code != 200:
+                        break
+                    page = _canonical_links(response.text)
+                    if not page:
+                        break
+                    all_links.extend(page)
+                    if len(page) < 25:
+                        break
+                except httpx.HTTPError:
+                    break
+
+        if all_links:
+            seen: set[str] = set()
+            return [l for l in all_links if not (l in seen or seen.add(l))]
 
         # Fallback: render the real search page headlessly.
         try:
             content = await self._page_content(
-                FULL_SEARCH_URL.format(keywords=keywords, seconds=seconds, extra=extra)
+                FULL_SEARCH_URL.format(keywords=keywords, seconds=seconds, extra=variants[0])
             )
             return _canonical_links(content)
         except Exception:

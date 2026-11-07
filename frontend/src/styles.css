@@ -342,6 +342,42 @@ body {
   font-size: 15px;
 }
 
+.preset-btn {
+  display: inline-block;
+  margin: 0 0 18px;
+  padding: 7px 14px;
+  border: 1px dashed var(--harsh);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--harsh);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.preset-btn:hover {
+  background: rgba(45, 212, 191, 0.08);
+  border-color: var(--enzo);
+  color: var(--enzo);
+}
+
+.chip-x {
+  margin-left: 6px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chip-x:hover {
+  opacity: 0.55;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

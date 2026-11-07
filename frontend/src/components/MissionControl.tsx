@@ -58,6 +58,9 @@ export default function MissionControl({ stage, logs, matches, done, error, onRe
             <span className={`meta-count${bump ? " bump" : ""}`}>
               {matches.length} match{matches.length === 1 ? "" : "es"}
             </span>
+            {running && (
+              <button className="ghost-btn cancel-btn" onClick={onReset}>Cancel & edit</button>
+            )}
           </div>
         </div>
 

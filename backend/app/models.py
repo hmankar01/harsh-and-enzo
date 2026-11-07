@@ -1,11 +1,16 @@
-from typing import Literal, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
 
 class LocationSpec(BaseModel):
-    mode: Literal["remote", "city", "hybrid"] = "remote"
-    city: Optional[str] = None
+    """Workplace-type and location filters. All fields optional; an empty spec
+    means "any workplace type, any location"."""
+
+    remote: bool = False
+    hybrid: bool = False
+    onsite: bool = False
+    cities: list[str] = Field(default_factory=list)
     radius_miles: Optional[int] = None
 
 

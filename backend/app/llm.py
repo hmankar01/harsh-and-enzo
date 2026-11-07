@@ -95,7 +95,8 @@ Produce a JSON object with exactly these keys:
    - rejection of any posting whose title or level matches the excluded seniority list
    - required skill alignment (at least a meaningful overlap with the listed skills)
    - domain alignment: the role should apply AI/automation to at least one of the selected domains; describe each selected domain in one sentence
-   - if sponsorship is required: reject postings that explicitly refuse visa sponsorship or require citizenship/permanent residency without exception
+   - builder/operator fit: if the brief emphasizes building tools, automation, data pipelines, dashboards, or shipping products for internal or client teams (e.g. skills like Python, SQL, Data Pipelines, Automation, AI Agents), reward postings that describe building internal tools, automating manual workflows, shipping, or working with business users; reject postings that are primarily pure ML research, model training, or demand a PhD/research-scientist profile
+   - if sponsorship is required: reject postings that explicitly refuse visa sponsorship or require citizenship/permanent residency without exception; treat "US citizen only", "US persons only", "no sponsorship", "no visa sponsorship", "not eligible for sponsorship", "must be authorized to work without sponsorship", or "green card required" as disqualifying
    - location fit per the stated location preference
    - rejection if the posting contains any of the exclusion keywords in a disqualifying way
    - if a salary floor is set: reject postings whose stated maximum compensation is clearly below it (postings with no salary listed are NOT rejected for salary)

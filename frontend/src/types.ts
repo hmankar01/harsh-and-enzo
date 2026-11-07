@@ -21,8 +21,10 @@ export interface JobMatch {
 }
 
 export interface LocationSpec {
-  mode: "remote" | "city" | "hybrid";
-  city?: string;
+  remote: boolean;
+  hybrid: boolean;
+  onsite: boolean;
+  cities: string[];
   radius_miles?: number;
 }
 
