@@ -23,6 +23,9 @@ TIME_FILTERS = [86400, 172800, 259200]  # 24h -> 48h -> 72h
 # with multiple Chromium browsers at once.
 PIPELINE_SEMAPHORE = asyncio.Semaphore(2)
 
+# How many jobs to scrape + evaluate concurrently within a single run.
+EVAL_CONCURRENCY = 3
+
 
 def parse_recency(posted: str) -> int:
     """Lower is fresher. Mirrors the original script's ranking."""
@@ -73,6 +76,24 @@ async def _find_links(
     return []
 
 
+async def _scrape_and_eval(scraper: Scraper, criteria: str, url: str) -> tuple[dict | None, str]:
+    """Scrape + evaluate one job concurrently. Returns (verdict, status) where
+    status is "ok", "scrape_fail", or "eval_fail"."""
+    try:
+        text = await scraper.job_text(url)
+    except Exception:
+        text = ""
+    if len(text) < 300:
+        return None, "scrape_fail"
+    try:
+        verdict = await evaluate_job(criteria, text)
+    except Exception:
+        return None, "eval_fail"
+    if not isinstance(verdict, dict):
+        return None, "eval_fail"
+    return verdict, "ok"
+
+
 async def run_pipeline(
     search_id: str, form: SearchForm, emit: Emit, is_cancelled: IsCancelled
 ) -> None:
@@ -112,7 +133,7 @@ async def run_pipeline(
                 )
 
                 await emit("stage", {"stage": "evaluating"})
-                for index, url in enumerate(targets, 1):
+                for batch_start in range(0, len(targets), EVAL_CONCURRENCY):
                     if is_cancelled():
                         return
                     if len(matches) >= settings.MAX_MATCHES:
@@ -122,61 +143,75 @@ async def run_pipeline(
                         )
                         break
 
-                    await _log(
-                        emit, "harsh",
-                        narrator.pick(narrator.HARSH_FETCHING, i=index, total=len(targets)),
+                    batch = targets[batch_start : batch_start + EVAL_CONCURRENCY]
+
+                    for offset in range(len(batch)):
+                        await _log(
+                            emit, "harsh",
+                            narrator.pick(
+                                narrator.HARSH_FETCHING,
+                                i=batch_start + offset + 1,
+                                total=len(targets),
+                            ),
+                        )
+
+                    results = await asyncio.gather(
+                        *(_scrape_and_eval(scraper, plan["eval_criteria"], url) for url in batch)
                     )
-                    try:
-                        text = await scraper.job_text(url)
-                    except Exception:
-                        text = ""
-                    if len(text) < 300:
-                        await _log(emit, "harsh", narrator.pick(narrator.HARSH_SCRAPE_FAIL), kind="reject")
-                        await scraper.polite_delay(settings.PER_JOB_DELAY)
-                        continue
 
-                    await _log(emit, "enzo", narrator.pick(narrator.ENZO_READING, i=index))
-                    try:
-                        verdict = await evaluate_job(plan["eval_criteria"], text)
-                        if not isinstance(verdict, dict):
-                            raise ValueError("verdict was not an object")
-                    except Exception:
-                        await _log(
-                            emit, "enzo",
-                            f"Enzo's notes on job #{index} caught fire. Skipping it.",
-                            kind="reject",
-                        )
-                        await scraper.polite_delay(settings.PER_JOB_DELAY)
-                        continue
+                    stop = False
+                    for offset, (url, (verdict, status)) in enumerate(zip(batch, results)):
+                        if is_cancelled():
+                            return
+                        if len(matches) >= settings.MAX_MATCHES:
+                            await _log(
+                                emit, "system",
+                                f"That's {settings.MAX_MATCHES} solid matches — the duo calls it a wrap.",
+                            )
+                            stop = True
+                            break
 
-                    evaluated += 1
-                    verdict["url"] = url
+                        idx = batch_start + offset + 1
+                        if status == "scrape_fail":
+                            await _log(emit, "harsh", narrator.pick(narrator.HARSH_SCRAPE_FAIL), kind="reject")
+                            continue
+                        if status == "eval_fail":
+                            await _log(emit, "enzo", f"Enzo's notes on job #{idx} caught fire. Skipping it.", kind="reject")
+                            continue
 
-                    if _as_bool(verdict.get("is_match")):
-                        job = {
-                            "title": verdict.get("title") or "Unknown title",
-                            "company": verdict.get("company") or "Unknown company",
-                            "salary_range": verdict.get("salary_range") or "Not listed",
-                            "experience_required": verdict.get("experience_required") or "Not stated",
-                            "posted_date": verdict.get("posted_date") or "Unknown",
-                            "url": url,
-                            "reason": verdict.get("reason") or "",
-                        }
-                        matches.append(job)
-                        await _log(
-                            emit, "enzo",
-                            narrator.pick(narrator.ENZO_MATCH, title=job["title"], company=job["company"]),
-                            kind="match",
-                        )
-                        await emit("match", job)
-                    else:
-                        reason = (verdict.get("reason") or "didn't clear the rubric").rstrip(".")
-                        await _log(
-                            emit, "enzo",
-                            narrator.pick(narrator.ENZO_REJECT, reason=reason + "."),
-                            kind="reject",
-                        )
+                        await _log(emit, "enzo", narrator.pick(narrator.ENZO_READING, i=idx))
+                        evaluated += 1
+                        verdict["url"] = url
 
+                        if _as_bool(verdict.get("is_match")):
+                            job = {
+                                "title": verdict.get("title") or "Unknown title",
+                                "company": verdict.get("company") or "Unknown company",
+                                "salary_range": verdict.get("salary_range") or "Not listed",
+                                "experience_required": verdict.get("experience_required") or "Not stated",
+                                "posted_date": verdict.get("posted_date") or "Unknown",
+                                "url": url,
+                                "reason": verdict.get("reason") or "",
+                            }
+                            matches.append(job)
+                            await _log(
+                                emit, "enzo",
+                                narrator.pick(narrator.ENZO_MATCH, title=job["title"], company=job["company"]),
+                                kind="match",
+                            )
+                            await emit("match", job)
+                        else:
+                            reason = (verdict.get("reason") or "didn't clear the rubric").rstrip(".")
+                            await _log(
+                                emit, "enzo",
+                                narrator.pick(narrator.ENZO_REJECT, reason=reason + "."),
+                                kind="reject",
+                            )
+
+                    if stop:
+                        break
+
+                    # One polite pause per batch (bounded concurrency stays gentle).
                     await scraper.polite_delay(settings.PER_JOB_DELAY)
 
             if is_cancelled():

@@ -125,6 +125,7 @@ class Scraper:
     def __init__(self):
         self._playwright = None
         self._browser = None
+        self._browser_lock = asyncio.Lock()
         self._http = httpx.AsyncClient(
             headers={"User-Agent": USER_AGENT, "Accept-Language": "en-US,en;q=0.9"},
             follow_redirects=True,
@@ -150,18 +151,20 @@ class Scraper:
     async def _page_content(self, url: str) -> str:
         """Render a page in headless Chromium and return its HTML."""
         if self._browser is None or not self._browser.is_connected():
-            if self._browser is not None:
-                await self._browser.close()
-                self._browser = None
-            if self._playwright is None:
-                self._playwright = await async_playwright().start()
-            try:
-                self._browser = await self._playwright.chromium.launch(
-                    headless=True, args=CHROMIUM_ARGS
-                )
-            except Exception:
-                self._browser = None
-                raise
+            async with self._browser_lock:
+                if self._browser is None or not self._browser.is_connected():
+                    if self._browser is not None:
+                        await self._browser.close()
+                        self._browser = None
+                    if self._playwright is None:
+                        self._playwright = await async_playwright().start()
+                    try:
+                        self._browser = await self._playwright.chromium.launch(
+                            headless=True, args=CHROMIUM_ARGS
+                        )
+                    except Exception:
+                        self._browser = None
+                        raise
         context = await self._browser.new_context(user_agent=USER_AGENT)
         try:
             page = await context.new_page()

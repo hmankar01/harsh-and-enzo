@@ -36,7 +36,7 @@ class Settings:
     # Pipeline knobs
     MAX_LINKS: int = int(os.getenv("MAX_LINKS", "25"))
     MAX_MATCHES: int = int(os.getenv("MAX_MATCHES", "8"))
-    PER_JOB_DELAY: float = float(os.getenv("PER_JOB_DELAY", "3.0"))
+    PER_JOB_DELAY: float = float(os.getenv("PER_JOB_DELAY", "1.0"))
 
     # Contact info surfaced when the rate limit is hit
     CONTACT_LINKEDIN: str = os.getenv(

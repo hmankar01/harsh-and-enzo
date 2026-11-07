@@ -33,4 +33,4 @@ services:
       - key: MAX_MATCHES
         value: "8"
       - key: PER_JOB_DELAY
-        value: "3.0"
+        value: "1.0"
