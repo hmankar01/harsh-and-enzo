@@ -76,10 +76,10 @@ IDLE_QUIPS = [
 ]
 
 LIMIT_MESSAGES = [
-    "Whoa there, speed-recruiter! Harsh & Enzo only run two missions per visitor, ever — "
+    "Whoa there, speed-recruiter! Harsh & Enzo only run {limit} missions per visitor, ever — "
     "the trench coat's on the rack and Enzo is asleep in his basket. Want the full, "
     "unlimited, caffeinated version of this duo? That's a conversation with the human Harsh.",
-    "Two searches deep and still hungry? That's the spirit. Sadly Enzo's nose is officially "
+    "{limit} searches deep and still hungry? That's the spirit. Sadly Enzo's nose is officially "
     "off duty, permanently — but the guy who built us never runs out. Ping him and he'll "
     "run the real thing for you.",
     "Mission limit reached! Harsh has clocked out and Enzo got a chew toy for excellent "

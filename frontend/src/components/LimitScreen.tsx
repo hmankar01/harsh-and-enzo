@@ -1,7 +1,7 @@
 import type { RateLimitInfo } from "../types";
 import { EnzoAvatar, HarshAvatar } from "./Avatars";
 
-export default function LimitScreen({ info }: { info: RateLimitInfo }) {
+export default function LimitScreen({ info, onReset }: { info: RateLimitInfo; onReset: () => void }) {
   return (
     <div className="card limit-card">
       <div className="limit-duo">
@@ -22,6 +22,7 @@ export default function LimitScreen({ info }: { info: RateLimitInfo }) {
         <a className="ghost-btn" href={`mailto:${info.contact_email}`}>
           Or email {info.contact_email}
         </a>
+        <button className="ghost-btn" onClick={onReset}>Back to the brief</button>
       </div>
     </div>
   );

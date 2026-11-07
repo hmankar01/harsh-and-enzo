@@ -46,6 +46,7 @@ class SearchRun:
 
 RUNS: dict[str, SearchRun] = {}
 TERMINAL_EVENTS = {"done", "error"}
+TASKS: set[asyncio.Task] = set()
 
 
 def _client_ip(request: Request) -> str:
@@ -76,7 +77,7 @@ async def start_search(form: SearchForm, request: Request):
             status_code=429,
             content={
                 "error": "rate_limited",
-                "message": random.choice(narrator.LIMIT_MESSAGES),
+                "message": random.choice(narrator.LIMIT_MESSAGES).format(limit=settings.RATE_LIMIT),
                 "contact_linkedin": settings.CONTACT_LINKEDIN,
                 "contact_email": settings.CONTACT_EMAIL,
             },
@@ -91,7 +92,9 @@ async def start_search(form: SearchForm, request: Request):
         if event in TERMINAL_EVENTS:
             run.finished = True
 
-    asyncio.create_task(run_pipeline(search_id, form, emit))
+    task = asyncio.create_task(run_pipeline(search_id, form, emit))
+    TASKS.add(task)
+    task.add_done_callback(TASKS.discard)
     return {"search_id": search_id, "searches_remaining": remaining}
 
 

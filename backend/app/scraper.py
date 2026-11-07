@@ -155,7 +155,9 @@ class Scraper:
         # Paginate (25 cards/page) across each location and merge + dedupe.
         all_links: list[str] = []
         for extra in variants:
-            for start in (0, 25, 50, 75):
+            for i, start in enumerate((0, 25, 50, 75)):
+                if i:
+                    await asyncio.sleep(0.5)  # polite gap between pages
                 try:
                     response = await self._http.get(
                         GUEST_SEARCH_URL.format(

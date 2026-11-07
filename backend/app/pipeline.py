@@ -72,6 +72,7 @@ async def run_pipeline(search_id: str, form: SearchForm, emit: Emit) -> None:
                     "Even with the net wide open, LinkedIn came back empty. "
                     "Try broader skills or a looser location.",
                 )
+                await save_results(search_id, {"matches": [], "evaluated": 0})
                 await emit("stage", {"stage": "done"})
                 await emit("done", {"matches": [], "evaluated": 0, "no_results": True})
                 return
@@ -99,13 +100,17 @@ async def run_pipeline(search_id: str, form: SearchForm, emit: Emit) -> None:
                     text = ""
                 if len(text) < 300:
                     await _log(emit, "harsh", narrator.pick(narrator.HARSH_SCRAPE_FAIL), kind="reject")
+                    await scraper.polite_delay(settings.PER_JOB_DELAY)
                     continue
 
                 await _log(emit, "enzo", narrator.pick(narrator.ENZO_READING, i=index))
                 try:
                     verdict = await evaluate_job(plan["eval_criteria"], text)
+                    if not isinstance(verdict, dict):
+                        raise ValueError("verdict was not an object")
                 except Exception:
                     await _log(emit, "enzo", f"Enzo's notes on job #{index} caught fire. Skipping it.", kind="reject")
+                    await scraper.polite_delay(settings.PER_JOB_DELAY)
                     continue
 
                 evaluated += 1
@@ -144,7 +149,10 @@ async def run_pipeline(search_id: str, form: SearchForm, emit: Emit) -> None:
         ranked = [{**job, "rank": i} for i, job in enumerate(matches, 1)]
 
         payload = {"matches": ranked, "evaluated": evaluated}
-        await save_results(search_id, payload)
+        try:
+            await save_results(search_id, payload)
+        except Exception:
+            pass  # a cache failure must never hide a completed run
 
         await emit("stage", {"stage": "done"})
         await emit("done", {**payload, "no_results": len(ranked) == 0})

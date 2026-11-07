@@ -34,7 +34,7 @@ const DEFAULT_FORM: SearchForm = {
   skills: ["LLM", "AI Agents", "RAG"],
   domains: [],
   requires_sponsorship: false,
-  location: { remote: true, hybrid: false, onsite: false, cities: [], radius_miles: undefined },
+  location: { remote: true, hybrid: false, onsite: false, cities: [], radius_miles: 25 },
   exclusion_keywords: "",
   salary_floor: undefined,
 };
@@ -48,7 +48,7 @@ const BUILDER_PRESET: SearchForm = {
   skills: ["Python", "SQL", "AI Agents", "LLM", "Data Pipelines", "Automation"],
   domains: ["General Ops"],
   requires_sponsorship: true,
-  location: { remote: true, hybrid: false, onsite: false, cities: [], radius_miles: undefined },
+  location: { remote: true, hybrid: false, onsite: false, cities: [], radius_miles: 25 },
   exclusion_keywords:
     "model training, deep learning, research scientist, machine learning engineer, quant, PhD, fine-tuning",
   salary_floor: undefined,
@@ -59,7 +59,7 @@ function loadSaved(): SearchForm {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_FORM;
     const parsed = JSON.parse(raw) as Partial<SearchForm>;
-    return {
+    const result: SearchForm = {
       ...DEFAULT_FORM,
       ...parsed,
       location: {
@@ -70,6 +70,11 @@ function loadSaved(): SearchForm {
         ...(parsed.location ?? {}),
       },
     };
+    // Clamp an impossible range (e.g. min > max) so the selects stay valid.
+    if (result.experience_max < result.experience_min) {
+      result.experience_max = result.experience_min;
+    }
+    return result;
   } catch {
     return DEFAULT_FORM;
   }

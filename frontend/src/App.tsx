@@ -40,6 +40,11 @@ export default function App() {
     }
   }, [phase]);
 
+  // Close any open stream when the app unmounts.
+  useEffect(() => {
+    return () => source.current?.close();
+  }, []);
+
   const launch = useCallback(
     async (form: SearchForm) => {
       setSubmitting(true);
@@ -75,7 +80,11 @@ export default function App() {
         es.addEventListener("error", (e) => {
           const data = (e as MessageEvent).data;
           if (data) {
-            setError(JSON.parse(data).message ?? "Something went sideways.");
+            try {
+              setError(JSON.parse(data).message ?? "Something went sideways.");
+            } catch {
+              setError("Something went sideways.");
+            }
             es.close();
           }
           // Errors without data are transport-level; EventSource auto-reconnects
@@ -99,6 +108,10 @@ export default function App() {
     source.current?.close();
     setPhase("form");
     setStage("idle");
+    setLogs([]);
+    setMatches([]);
+    setDone(null);
+    setLimitInfo(null);
     setError(null);
   }, []);
 
@@ -124,7 +137,7 @@ export default function App() {
             onReset={reset}
           />
         )}
-        {phase === "limited" && limitInfo && <LimitScreen info={limitInfo} />}
+        {phase === "limited" && limitInfo && <LimitScreen info={limitInfo} onReset={reset} />}
       </div>
       <footer className="footer">
         Built with two imaginary employees and one very real scraping pipeline
